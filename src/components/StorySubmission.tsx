@@ -1,12 +1,9 @@
 import { useState } from "react";
-import { Story } from "@/pages/Index";
-import { Send, AlertCircle, Upload, X, Image } from "lucide-react";
+import { Send, AlertCircle, Upload, X } from "lucide-react";
+import { ref, push, serverTimestamp } from "firebase/database";
+import { db } from "../firebaseClient"; // Make sure this path is correct
 
-interface StorySubmissionProps {
-  onSubmit: (story: Omit<Story, 'id'>) => void;
-}
-
-export const StorySubmission = ({ onSubmit }: StorySubmissionProps) => {
+export const StorySubmission = () => {
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -44,15 +41,15 @@ export const StorySubmission = ({ onSubmit }: StorySubmissionProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
-    // Simulate submission delay
-    setTimeout(() => {
-      onSubmit({
+
+    try {
+      await push(ref(db, "stories"), {
         ...formData,
-        authorName: formData.isAnonymous ? 'Anonymous' : formData.authorName,
-        photos: photos
+        authorName: formData.isAnonymous ? "Anonymous" : formData.authorName,
+        photos,
+        submittedAt: serverTimestamp()
       });
-      setIsSubmitting(false);
+
       // Reset form
       setFormData({
         title: '',
@@ -64,7 +61,12 @@ export const StorySubmission = ({ onSubmit }: StorySubmissionProps) => {
         isAnonymous: false
       });
       setPhotos([]);
-    }, 1000);
+    } catch (error) {
+      console.error("Error submitting story:", error);
+      alert("Submission failed. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -92,27 +94,23 @@ export const StorySubmission = ({ onSubmit }: StorySubmissionProps) => {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Story Title *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Story Title *</label>
               <input
                 type="text"
                 required
                 value={formData.title}
-                onChange={(e) => setFormData({...formData, title: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Give your story a meaningful title"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Category *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
               <select
                 required
                 value={formData.category}
-                onChange={(e) => setFormData({...formData, category: e.target.value as any})}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="other">Other</option>
@@ -125,50 +123,41 @@ export const StorySubmission = ({ onSubmit }: StorySubmissionProps) => {
 
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Location
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
                 <input
                   type="text"
                   value={formData.location}
-                  onChange={(e) => setFormData({...formData, location: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="City, Country (optional)"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Date of Incident
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Date of Incident</label>
                 <input
                   type="date"
                   value={formData.date}
-                  onChange={(e) => setFormData({...formData, date: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Your Story *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Your Story *</label>
               <textarea
                 required
                 rows={8}
                 value={formData.content}
-                onChange={(e) => setFormData({...formData, content: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
                 placeholder="Share your experience. Include as much or as little detail as you're comfortable with..."
               />
             </div>
 
-            {/* Photo Upload Section */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Supporting Photos (Optional)
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Supporting Photos (Optional)</label>
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                 <input
                   type="file"
@@ -178,10 +167,7 @@ export const StorySubmission = ({ onSubmit }: StorySubmissionProps) => {
                   className="hidden"
                   id="photo-upload"
                 />
-                <label
-                  htmlFor="photo-upload"
-                  className="cursor-pointer flex flex-col items-center"
-                >
+                <label htmlFor="photo-upload" className="cursor-pointer flex flex-col items-center">
                   <Upload className="text-gray-400 mb-2" size={32} />
                   <span className="text-gray-600">Click to upload photos</span>
                   <span className="text-sm text-gray-500 mt-1">
@@ -190,7 +176,6 @@ export const StorySubmission = ({ onSubmit }: StorySubmissionProps) => {
                 </label>
               </div>
 
-              {/* Photo Preview */}
               {photos.length > 0 && (
                 <div className="mt-4">
                   <h4 className="text-sm font-medium text-gray-700 mb-3">
@@ -223,7 +208,7 @@ export const StorySubmission = ({ onSubmit }: StorySubmissionProps) => {
                 type="checkbox"
                 id="anonymous"
                 checked={formData.isAnonymous}
-                onChange={(e) => setFormData({...formData, isAnonymous: e.target.checked})}
+                onChange={(e) => setFormData({ ...formData, isAnonymous: e.target.checked })}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
               <label htmlFor="anonymous" className="text-sm text-gray-700">
@@ -233,13 +218,11 @@ export const StorySubmission = ({ onSubmit }: StorySubmissionProps) => {
 
             {!formData.isAnonymous && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Your Name
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Your Name</label>
                 <input
                   type="text"
                   value={formData.authorName}
-                  onChange={(e) => setFormData({...formData, authorName: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, authorName: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="How would you like to be identified?"
                 />
@@ -251,9 +234,7 @@ export const StorySubmission = ({ onSubmit }: StorySubmissionProps) => {
               disabled={isSubmitting}
               className="w-full bg-blue-900 hover:bg-blue-800 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? (
-                <>Submitting...</>
-              ) : (
+              {isSubmitting ? "Submitting..." : (
                 <>
                   Submit Your Story <Send size={20} />
                 </>
